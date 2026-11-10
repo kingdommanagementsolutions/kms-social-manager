@@ -1,0 +1,61 @@
+# KMS Social Manager
+
+A self-hosted social media command center for Kingdom Management Solutions, in the spirit of Meta Business Suite but across **Facebook Pages, Instagram, X, TikTok and LinkedIn**. Zero runtime dependencies: Node 20.6+ and a browser.
+
+## Features
+
+| | |
+|---|---|
+| **Dashboard** | Followers, engagement, posts, queue, latest comments, top posts across all accounts |
+| **Create post** | One composer for many accounts, per-platform character limits, media upload/URL, live preview |
+| **Calendar** | Month view of scheduled and published posts; click a day to schedule |
+| **Posts** | Queue/history with retry for failures, plus what is live on each platform with its metrics |
+| **Inbox** | Unified comments with read/unread and replies sent back through each platform's API |
+| **Analytics** | 7/30/90-day engagement and follower trends, per-account table, platform comparison, top posts |
+| **Accounts** | OAuth connect/disconnect per platform, with setup help for anything not yet configured |
+
+A built-in scheduler publishes due posts every 20 seconds. Tokens are encrypted at rest (AES-256-GCM) and refreshed automatically (X, TikTok).
+
+## Run it
+
+```bash
+cp .env.example .env     # optional: add API credentials and a password
+npm start                # http://localhost:3000
+```
+
+With no credentials configured you can still click **Add demo account** on the Accounts page to explore everything with sample data. Demo accounts are clearly labelled and never call any external API.
+
+```bash
+npm test                 # unit tests (node:test)
+```
+
+## Connecting real accounts
+
+For each platform, create a developer app, register the redirect URI `BASE_URL/auth/<platform>/callback` (shown on the Accounts page), put the keys in `.env`, restart, and click **Connect**.
+
+| Platform | Env vars | Capabilities | Caveats |
+|---|---|---|---|
+| Facebook Pages | `META_APP_ID`, `META_APP_SECRET` | publish, post stats, comments + replies, followers | Meta app review is needed for Pages permissions beyond your own admin/tester accounts |
+| Instagram | same Meta app | publish (image/Reels), post stats, comments + replies, followers | Business/Creator account linked to a Page; media must be a public URL |
+| X | `X_CLIENT_ID`, `X_CLIENT_SECRET` | publish text, timeline stats, mentions + replies | Reading data needs a paid API tier; media upload not implemented |
+| TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | publish video (pull from URL), video stats, followers | Unaudited apps can only post privately (`TIKTOK_PRIVACY=SELF_ONLY`); no comments API |
+| LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | publish text to member profile | Reading posts/analytics is restricted to LinkedIn partners |
+
+Platform APIs change often; each integration is one small file in `server/providers/` exposing `connect`, `publish`, `fetchPosts`, `fetchProfile`, `fetchComments`, `reply` (and `refresh`). Adding a platform means adding a file and registering it in `server/providers/index.js`. Capability flags in each file's `meta.features` drive what the UI offers. The integrations were written against the public API docs but **have not been run against live accounts**, so expect to adjust scopes/fields during your first real connection.
+
+## Going beyond localhost
+
+- Set `BASE_URL` to your public HTTPS address (OAuth redirects and uploaded media URLs depend on it; Instagram and TikTok fetch media from it).
+- Set `DASHBOARD_PASSWORD`. Without it, anyone who can reach the server can post to your accounts.
+- Keep `data/` (database, uploads, encryption key) on persistent storage and out of git. Set `APP_SECRET` if you want to manage the encryption key yourself.
+- The scheduler runs inside the server process, so keep it running (systemd, Docker, a PaaS) for scheduled posts to go out.
+
+## Layout
+
+```
+server/            http server, routes, OAuth, scheduler, encrypted JSON store
+server/providers/  one file per platform
+server/demo.js     deterministic sample data
+public/            single-page UI (vanilla JS modules, inline-SVG charts)
+tests/             node:test suite
+```
