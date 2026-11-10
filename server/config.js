@@ -5,6 +5,8 @@ try { process.loadEnvFile(); } catch { /* no .env file: fine */ }
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const PORT = Number(process.env.PORT) || 3000;
+// Bind to loopback by default; nginx is the public entry point. Set HOST=0.0.0.0 to expose directly.
+export const HOST = process.env.HOST || '127.0.0.1';
 export const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 export const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 export const PUBLIC_DIR = path.join(ROOT, 'public');

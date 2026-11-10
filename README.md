@@ -62,7 +62,9 @@ tests/             node:test suite
 
 ## Deploying to a VPS (systemd, no Docker)
 
-1. On the server (Ubuntu 24.04): `sudo deploy/setup-ubuntu.sh` installs Node 22, git and Caddy. Point a domain at the server and use `deploy/Caddyfile.example` for HTTPS (copy to `/etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`).
+1. On the server (Ubuntu 24.04): `sudo deploy/setup-ubuntu.sh` installs Node 22, git and nginx, and configures nginx to proxy port 80 to the app. No domain needed: browse to `http://<server-ip>`.
 2. `deploy/deploy.sh local <branch>` on the server itself, or `deploy/deploy.sh user@your-server <branch>` from another machine (clones to `/opt/kms-social-manager`, installs the `kms-social` systemd service, restarts it).
-3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
+3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL=http://<server-ip>`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
 4. Logs: `journalctl -u kms-social -f`. Back up `/opt/kms-social-manager/data`.
+
+**IP-only caveats.** Without a domain there is no trusted HTTPS certificate, so traffic (including the dashboard password) is unencrypted, and most platforms won't work against it: Meta, TikTok, X and LinkedIn require HTTPS redirect URIs, and Instagram/TikTok fetch uploaded media over a valid HTTPS URL. Demo mode and the UI work fine. For real connections, add a domain and HTTPS (e.g. `sudo apt install certbot python3-certbot-nginx && sudo certbot --nginx -d your.domain`, then set `BASE_URL=https://your.domain`). Until then, restrict access with a firewall or a VPN.
