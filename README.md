@@ -59,3 +59,10 @@ server/demo.js     deterministic sample data
 public/            single-page UI (vanilla JS modules, inline-SVG charts)
 tests/             node:test suite
 ```
+
+## Deploying to a VPS (systemd, no Docker)
+
+1. On the server: install Node 20.6+ and git, and point a domain at it. Install Caddy (or nginx) and use `deploy/Caddyfile.example` for HTTPS.
+2. From your machine: `deploy/deploy.sh user@your-server <branch>` (clones to `/opt/kms-social-manager`, installs the `kms-social` systemd service, restarts it).
+3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
+4. Logs: `journalctl -u kms-social -f`. Back up `/opt/kms-social-manager/data`.

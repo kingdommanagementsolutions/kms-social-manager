@@ -1,0 +1,19 @@
+[Unit]
+Description=KMS Social Manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kms
+WorkingDirectory=/opt/kms-social-manager
+EnvironmentFile=/opt/kms-social-manager/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/kms-social-manager/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

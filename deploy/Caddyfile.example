@@ -1,0 +1,7 @@
+# Automatic HTTPS. Replace the domain; set BASE_URL=https://social.example.com in .env
+social.example.com {
+	reverse_proxy 127.0.0.1:3000
+	request_body {
+		max_size 200MB
+	}
+}
