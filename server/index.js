@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { PORT, HOST, BASE_URL, BASE_PATH, PUBLIC_DIR, UPLOAD_DIR, PASSWORD } from './config.js';
 import { hmac, uid } from './store.js';
 import { providers } from './providers/index.js';
@@ -203,7 +204,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   server.listen(PORT, HOST, () => {
     console.log(`KMS Social Manager running at ${BASE_URL}${PASSWORD ? '' : '  (no DASHBOARD_PASSWORD set: open access)'}`);
     const moved = settings.importEnv();
