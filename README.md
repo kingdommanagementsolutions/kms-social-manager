@@ -62,7 +62,7 @@ tests/             node:test suite
 
 ## Deploying to a VPS (systemd, no Docker)
 
-1. On the server: install Node 20.6+ and git, and point a domain at it. Install Caddy (or nginx) and use `deploy/Caddyfile.example` for HTTPS.
-2. From your machine: `deploy/deploy.sh user@your-server <branch>` (clones to `/opt/kms-social-manager`, installs the `kms-social` systemd service, restarts it).
+1. On the server (Ubuntu 24.04): `sudo deploy/setup-ubuntu.sh` installs Node 22, git and Caddy. Point a domain at the server and use `deploy/Caddyfile.example` for HTTPS (copy to `/etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`).
+2. `deploy/deploy.sh local <branch>` on the server itself, or `deploy/deploy.sh user@your-server <branch>` from another machine (clones to `/opt/kms-social-manager`, installs the `kms-social` systemd service, restarts it).
 3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
 4. Logs: `journalctl -u kms-social -f`. Back up `/opt/kms-social-manager/data`.

@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Usage: deploy/deploy.sh user@host [branch]
+# Usage: deploy/deploy.sh <user@host | local> [branch]
+#   'local' deploys onto the machine you are running this on (no SSH).
 # First run: creates the kms user, installs the service. Later runs: updates code and restarts.
 # Requires on the server: Node >= 20.6 (node -v), git, sudo. .env must exist at /opt/kms-social-manager/.env
 set -euo pipefail
-HOST="${1:?usage: deploy.sh user@host [branch]}"
+HOST="${1:?usage: deploy.sh <user@host|local> [branch]}"
 BRANCH="${2:-main}"
 REPO="$(git config --get remote.origin.url)"
 
-ssh "$HOST" bash -s -- "$REPO" "$BRANCH" <<'REMOTE'
+if [ "$HOST" = local ]; then RUN=(bash -s --); else RUN=(ssh "$HOST" bash -s --); fi
+"${RUN[@]}" "$REPO" "$BRANCH" <<'REMOTE'
 set -euo pipefail
 REPO="$1"; BRANCH="$2"; DIR=/opt/kms-social-manager
-node -e 'process.exit(+(process.versions.node.split(".").map(Number).reduce((a,v,i)=>a||(i==0?(v>20?-1:v<20?1:0):i==1?(v>=6?-1:1):0),0)>0))' || { echo "Node >= 20.6 required"; exit 1; }
+[ "$(node -p 'const [a,b]=process.versions.node.split(".").map(Number); (a>20||(a==20&&b>=6))?1:0')" = 1 ] || { echo "Node >= 20.6 required (run deploy/setup-ubuntu.sh)"; exit 1; }
 id kms >/dev/null 2>&1 || sudo useradd --system --home "$DIR" --shell /usr/sbin/nologin kms
 sudo mkdir -p "$DIR" && sudo chown -R "$USER":kms "$DIR"
 if [ -d "$DIR/.git" ]; then git -C "$DIR" fetch origin "$BRANCH" && git -C "$DIR" checkout -q "$BRANCH" && git -C "$DIR" reset -q --hard "origin/$BRANCH"
