@@ -43,10 +43,14 @@ For each platform, create a developer app, register the redirect URI `BASE_URL/a
 
 Platform APIs change often; each integration is one small file in `server/providers/` exposing `connect`, `publish`, `fetchPosts`, `fetchProfile`, `fetchComments`, `reply` (and `refresh`). Adding a platform means adding a file and registering it in `server/providers/index.js`. Capability flags in each file's `meta.features` drive what the UI offers. The integrations were written against the public API docs but **have not been run against live accounts**, so expect to adjust scopes/fields during your first real connection.
 
+## Dashboard password
+
+`npm run set-password` prompts once (typing is hidden) and stores only a salted scrypt hash in the database, so no plain-text password lives in `.env` or your shell history. It takes effect immediately and signs out existing sessions. There is no email reset: to change or recover the password, run the command again on the machine hosting the app (`npm run set-password -- --clear` removes it). `DASHBOARD_PASSWORD` in `.env` still works as a fallback.
+
 ## Going beyond localhost
 
 - Set `BASE_URL` to your public HTTPS address (OAuth redirects and uploaded media URLs depend on it; Instagram and TikTok fetch media from it).
-- Set `DASHBOARD_PASSWORD`. Without it, anyone who can reach the server can post to your accounts.
+- Run `npm run set-password` (or set `DASHBOARD_PASSWORD`). Without a password, anyone who can reach the server can post to your accounts.
 - Keep `data/` (SQLite database, uploads, encryption key) and back up `kms.db` and `.secret` together: the database is unreadable without the key. Keep `data/` on persistent storage and out of git. Set `APP_SECRET` if you want to manage the encryption key yourself.
 - The scheduler runs inside the server process, so keep it running (systemd, Docker, a PaaS) for scheduled posts to go out.
 

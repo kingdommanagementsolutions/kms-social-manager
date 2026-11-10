@@ -47,6 +47,20 @@ test('analytics aggregates demo accounts', async () => {
   assert.equal(a.series.dates.length, 30);
 });
 
+test('dashboard password is stored hashed and verifies', async () => {
+  const auth = await import('../server/auth.js');
+  assert.equal(auth.authRequired(), false);
+  auth.setPassword('correct horse');
+  assert.equal(auth.authRequired(), true);
+  assert.equal(auth.verifyPassword('correct horse'), true);
+  assert.equal(auth.verifyPassword('wrong'), false);
+  const before = auth.sessionTag();
+  auth.setPassword('another one!');
+  assert.notEqual(auth.sessionTag(), before);
+  auth.clearPassword();
+  assert.equal(auth.authRequired(), false);
+});
+
 test('credentials are stored encrypted and fall back to env', async () => {
   const settings = await import('../server/settings.js');
   process.env.X_CLIENT_ID = 'env-id';

@@ -3,11 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { PORT, HOST, BASE_URL, BASE_PATH, PUBLIC_DIR, UPLOAD_DIR, PASSWORD } from './config.js';
+import { PORT, HOST, BASE_URL, BASE_PATH, PUBLIC_DIR, UPLOAD_DIR } from './config.js';
 import { hmac, uid } from './store.js';
 import { providers } from './providers/index.js';
 import * as svc from './service.js';
 import * as settings from './settings.js';
+import { authRequired, verifyPassword, sessionTag } from './auth.js';
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -21,14 +22,14 @@ const MAX_UPLOAD = 200 * 1024 * 1024;
 
 /* ---------- auth (optional single shared password) ---------- */
 const COOKIE = 'kms_session';
-const sign = (exp) => `${exp}.${hmac('session:' + exp)}`;
+const sign = (exp) => `${exp}.${hmac(`session:${exp}:${sessionTag()}`)}`;
 const safeEq = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 function isAuthed(req) {
-  if (!PASSWORD) return true;
+  if (!authRequired()) return true;
   const m = /(?:^|;\s*)kms_session=([^;]+)/.exec(req.headers.cookie || '');
   if (!m) return false;
   const [exp, mac] = decodeURIComponent(m[1]).split('.');
-  return Number(exp) > Date.now() && !!mac && safeEq(mac, hmac('session:' + exp));
+  return Number(exp) > Date.now() && !!mac && safeEq(mac, hmac(`session:${exp}:${sessionTag()}`));
 }
 const attempts = new Map();
 function throttled(ip) {
@@ -61,14 +62,14 @@ const route = (method, pattern, handler, { open = false } = {}) =>
   routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '/?$'), handler, open });
 
 /* ---------- API routes ---------- */
-route('GET', '/api/session', (req, res) => send(res, 200, { authRequired: !!PASSWORD, authed: isAuthed(req) }), { open: true });
+route('GET', '/api/session', (req, res) => send(res, 200, { authRequired: authRequired(), authed: isAuthed(req) }), { open: true });
 route('POST', '/api/login', async (req, res) => {
   // Behind nginx every connection comes from loopback; trust X-Real-IP only in that case.
   const peer = req.socket.remoteAddress || '?';
   const ip = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer) ? req.headers['x-real-ip'] || peer : peer;
   if (throttled(ip)) return send(res, 429, { error: 'Too many attempts. Try again later.' });
   const { password = '' } = await readJson(req);
-  if (!PASSWORD || !safeEq(String(password), PASSWORD)) {
+  if (!authRequired() || !verifyPassword(password)) {
     attempts.get(ip).push(Date.now());
     return send(res, 401, { error: 'Incorrect password' });
   }
@@ -206,7 +207,7 @@ const server = http.createServer(async (req, res) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   server.listen(PORT, HOST, () => {
-    console.log(`KMS Social Manager running at ${BASE_URL}${PASSWORD ? '' : '  (no DASHBOARD_PASSWORD set: open access)'}`);
+    console.log(`KMS Social Manager running at ${BASE_URL}${authRequired() ? '' : '  (no password set: open access. Run `npm run set-password`)'}`);
     const moved = settings.importEnv();
     if (moved.length) console.log(`Imported ${moved.length} API credential(s) from the environment into the encrypted database. You can now remove them from .env.`);
     svc.startScheduler();
