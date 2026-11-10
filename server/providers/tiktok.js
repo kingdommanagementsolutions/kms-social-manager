@@ -1,4 +1,5 @@
 import { api, qs } from '../http.js';
+import { cfg } from '../settings.js';
 
 export const meta = {
   id: 'tiktok', name: 'TikTok', short: '♪', color: '#FE2C55',
@@ -6,20 +7,20 @@ export const meta = {
   features: { publish: true, posts: true, comments: false, followers: true },
   env: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
   docs: 'https://developers.tiktok.com/doc/content-posting-api-get-started',
-  note: 'Video posts from a public URL. Unaudited apps can only post privately (set TIKTOK_PRIVACY after audit). TikTok has no comment API.',
+  note: 'Video posts from a public URL. Unaudited apps can only post privately (change visibility in API credentials after audit). TikTok has no comment API.',
 };
-export const configured = () => !!(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET);
+export const configured = () => !!(cfg('TIKTOK_CLIENT_KEY') && cfg('TIKTOK_CLIENT_SECRET'));
 
 const API = 'https://open.tiktokapis.com/v2';
 export const authUrl = ({ state, redirectUri }) =>
   'https://www.tiktok.com/v2/auth/authorize/?' + qs({
-    client_key: process.env.TIKTOK_CLIENT_KEY, response_type: 'code', state, redirect_uri: redirectUri,
+    client_key: cfg('TIKTOK_CLIENT_KEY'), response_type: 'code', state, redirect_uri: redirectUri,
     scope: 'user.info.basic,user.info.profile,user.info.stats,video.publish,video.list',
   });
 
 const tokensFrom = (t) => ({ access_token: t.access_token, refresh_token: t.refresh_token, expires_at: Date.now() + t.expires_in * 1000 });
 const bearer = (a) => ({ authorization: `Bearer ${a.tokens.access_token}` });
-const tokenForm = (extra) => ({ client_key: process.env.TIKTOK_CLIENT_KEY, client_secret: process.env.TIKTOK_CLIENT_SECRET, ...extra });
+const tokenForm = (extra) => ({ client_key: cfg('TIKTOK_CLIENT_KEY'), client_secret: cfg('TIKTOK_CLIENT_SECRET'), ...extra });
 
 export async function connect({ code, redirectUri }) {
   const t = await api(`${API}/oauth/token/`, { method: 'POST', form: tokenForm({ code, grant_type: 'authorization_code', redirect_uri: redirectUri }) });
@@ -38,7 +39,7 @@ export async function publish(acct, { text, mediaUrl }) {
   const r = await api(`${API}/post/publish/video/init/`, {
     method: 'POST', headers: bearer(acct),
     json: {
-      post_info: { title: text.slice(0, 2200), privacy_level: process.env.TIKTOK_PRIVACY || 'SELF_ONLY', disable_comment: false },
+      post_info: { title: text.slice(0, 2200), privacy_level: cfg('TIKTOK_PRIVACY') || 'SELF_ONLY', disable_comment: false },
       source_info: { source: 'PULL_FROM_URL', video_url: mediaUrl },
     },
   });

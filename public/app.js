@@ -393,20 +393,39 @@ views.analytics = async (el, _a, _q, tok) => {
 
 /* ---------- Accounts ---------- */
 views.accounts = async (el, _a, q) => {
-  const [{ platforms, redirects }, { accounts }] = await Promise.all([api('api/platforms'), api('api/accounts')]);
+  const [{ platforms, redirects }, { accounts }, { keys }] = await Promise.all([api('api/platforms'), api('api/accounts'), api('api/settings')]);
   S.platforms = platforms; S.redirects = redirects; S.accounts = accounts;
   const feat = (f) => [['publish', 'Publish'], ['posts', 'Post stats'], ['comments', 'Comments'], ['followers', 'Followers']].map(([k, l]) => `<span class="pill ${f[k] ? 'good' : ''}" ${f[k] ? '' : 'style="text-decoration:line-through;opacity:.6"'}>${l}</span>`).join('');
   el.innerHTML = head('Accounts', 'Connect the pages and profiles you manage') +
     (q.get('connected') ? `<div class="alert good">Connected ${esc(q.get('connected'))} account(s).</div>` : '') + (q.get('error') ? `<div class="alert bad">${esc(q.get('error'))}</div>` : '') +
-    (accounts.some((a) => a.demo) ? '<div class="alert">Demo accounts show sample data. Add API credentials in <code>.env</code> and connect real accounts to go live.</div>' : '') +
+    (accounts.some((a) => a.demo) ? '<div class="alert">Demo accounts show sample data. Add API credentials on a platform card and connect real accounts to go live.</div>' : '') +
     `<div class="grid g-cards">${platforms.map((p) => {
       const mine = accounts.filter((a) => a.platform === p.id);
       return `<div class="card"><div style="display:flex;gap:10px;align-items:center">${pf(p.id, true)}<div><h2>${esc(p.name)}</h2><span class="pill ${p.configured ? 'good' : ''}">${p.configured ? 'API configured' : 'Not configured'}</span></div></div>
         <div class="feat">${feat(p.features)}</div><div class="muted small">${esc(p.note)}</div>
         ${mine.map((a) => `<div class="row">${a.avatar && safeUrl(a.avatar) ? `<img class="avatar" src="${esc(a.avatar)}" alt="" referrerpolicy="no-referrer">` : pf(p.id, true)}<div class="grow"><div class="clip"><b>${esc(a.name)}</b>${demoPill(a)}</div><div class="muted small clip">${esc(a.handle)}</div></div><button class="btn sm danger" data-act="disconnect" data-id="${esc(a.id)}">Remove</button></div>`).join('')}
         <div class="actions">${p.configured ? `<a class="btn primary" href="auth/${esc(p.id)}/start">${mine.some((a) => !a.demo) ? 'Connect another' : 'Connect'}</a>` : ''}${mine.some((a) => a.demo) ? '' : `<button class="btn" data-act="demo" data-p="${esc(p.id)}">Add demo account</button>`}</div>
-        ${p.configured ? '' : `<details style="margin-top:12px"><summary class="small" style="cursor:pointer">How to set this up</summary><div class="small" style="margin-top:8px">Create an app in the <a href="${esc(p.docs)}" target="_blank" rel="noopener">${esc(p.name)} developer portal</a>, add this redirect URI, then put the credentials in <code>.env</code> and restart:<div style="margin:6px 0"><code>${esc(redirects[p.id])}</code></div>${p.env.map((e) => `<div><code>${esc(e)}</code></div>`).join('')}</div></details>`}</div>`;
+        <details style="margin-top:12px" ${p.configured ? '' : 'open'}><summary class="small" style="cursor:pointer">API credentials${p.configured ? '' : ' (required to connect)'}</summary>
+          <div class="small" style="margin-top:8px">Create an app in the <a href="${esc(p.docs)}" target="_blank" rel="noopener">${esc(p.name)} developer portal</a> and register this redirect URI:<div style="margin:6px 0"><code>${esc(redirects[p.id])}</code></div>
+          <div data-creds="${esc(p.id)}">${keys.filter((k) => k.platforms.includes(p.id)).map((k) => `<label class="field" style="margin:10px 0 4px">${esc(k.label)} ${k.set ? `<span class="pill ${k.source === 'database' ? 'good' : 'warn'}">${k.source === 'database' ? 'saved, encrypted' : 'from .env'}</span>` : ''}</label>${k.options ? `<select data-key="${esc(k.name)}">${k.options.map((o) => `<option ${o === (k.value || 'SELF_ONLY') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : `<input data-key="${esc(k.name)}" type="${k.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" placeholder="${k.set ? esc(k.hint) + ' — leave blank to keep' : 'Paste value'}">`}`).join('')}</div>
+          <div class="actions" style="margin-top:10px"><button class="btn primary sm" data-act="savecreds" data-p="${esc(p.id)}">Save</button>${keys.some((k) => k.platforms.includes(p.id) && k.set && k.source === 'database' && !k.options) ? `<button class="btn sm danger" data-act="clearcreds" data-p="${esc(p.id)}">Remove saved</button>` : ''}</div>
+          ${p.id === 'facebook' || p.id === 'instagram' ? '<div class="muted small" style="margin-top:6px">Facebook and Instagram share one Meta app.</div>' : ''}</div></details></div>`;
     }).join('')}</div>`;
+  const credBox = (t) => document.querySelector(`[data-creds="${t.dataset.p}"]`);
+  acts.savecreds = async (t) => {
+    const values = {};
+    credBox(t).querySelectorAll('[data-key]').forEach((i) => { if (i.value.trim()) values[i.dataset.key] = i.value.trim(); });
+    if (!Object.keys(values).length) throw new Error('Enter at least one value to save.');
+    await api('api/settings', { method: 'PUT', body: { values } });
+    toast('Credentials saved (encrypted)'); render();
+  };
+  acts.clearcreds = async (t) => {
+    if (!confirm('Remove the saved credentials for this platform? Connected accounts keep working until their tokens expire.')) return;
+    const values = {};
+    keys.filter((k) => k.platforms.includes(t.dataset.p) && !k.options).forEach((k) => { values[k.name] = null; });
+    await api('api/settings', { method: 'PUT', body: { values } });
+    toast('Credentials removed'); render();
+  };
   acts.demo = async (t) => { await api(`api/accounts/demo/${t.dataset.p}`, { method: 'POST', body: {} }); toast('Demo account added'); await refreshAccounts(); render(); };
   acts.disconnect = async (t) => { if (!confirm('Remove this account from the dashboard? Scheduled posts for it will fail.')) return; await api(`api/accounts/${t.dataset.id}`, { method: 'DELETE' }); await refreshAccounts(); render(); };
 };

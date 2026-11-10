@@ -1,4 +1,5 @@
 import { api, qs } from '../http.js';
+import { cfg } from '../settings.js';
 
 export const meta = {
   id: 'linkedin', name: 'LinkedIn', short: 'in', color: '#0A66C2',
@@ -8,17 +9,17 @@ export const meta = {
   docs: 'https://learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api',
   note: 'Publishes text posts to your member profile. LinkedIn restricts reading posts/analytics to approved partners.',
 };
-export const configured = () => !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET);
+export const configured = () => !!(cfg('LINKEDIN_CLIENT_ID') && cfg('LINKEDIN_CLIENT_SECRET'));
 
 export const authUrl = ({ state, redirectUri }) =>
   'https://www.linkedin.com/oauth/v2/authorization?' + qs({
-    response_type: 'code', client_id: process.env.LINKEDIN_CLIENT_ID, redirect_uri: redirectUri, state, scope: 'openid profile w_member_social',
+    response_type: 'code', client_id: cfg('LINKEDIN_CLIENT_ID'), redirect_uri: redirectUri, state, scope: 'openid profile w_member_social',
   });
 
 export async function connect({ code, redirectUri }) {
   const t = await api('https://www.linkedin.com/oauth/v2/accessToken', {
     method: 'POST',
-    form: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: process.env.LINKEDIN_CLIENT_ID, client_secret: process.env.LINKEDIN_CLIENT_SECRET },
+    form: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: cfg('LINKEDIN_CLIENT_ID'), client_secret: cfg('LINKEDIN_CLIENT_SECRET') },
   });
   const me = await api('https://api.linkedin.com/v2/userinfo', { headers: { authorization: `Bearer ${t.access_token}` } });
   return [{

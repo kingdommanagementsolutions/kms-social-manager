@@ -1,4 +1,5 @@
 import { api, qs } from '../http.js';
+import { cfg } from '../settings.js';
 
 export const meta = {
   id: 'x', name: 'X (Twitter)', short: 'X', color: '#111111',
@@ -8,17 +9,17 @@ export const meta = {
   docs: 'https://docs.x.com/x-api/introduction',
   note: 'Text posts and replies. Reading timelines/mentions requires a paid X API tier. Media upload is not included.',
 };
-export const configured = () => !!process.env.X_CLIENT_ID;
+export const configured = () => !!cfg('X_CLIENT_ID');
 export const usesPkce = true;
 
 const BASE = 'https://api.x.com/2';
-const basic = () => (process.env.X_CLIENT_SECRET
-  ? { authorization: 'Basic ' + Buffer.from(`${process.env.X_CLIENT_ID}:${process.env.X_CLIENT_SECRET}`).toString('base64') }
+const basic = () => (cfg('X_CLIENT_SECRET')
+  ? { authorization: 'Basic ' + Buffer.from(`${cfg('X_CLIENT_ID')}:${cfg('X_CLIENT_SECRET')}`).toString('base64') }
   : {});
 
 export const authUrl = ({ state, redirectUri, challenge }) =>
   'https://x.com/i/oauth2/authorize?' + qs({
-    response_type: 'code', client_id: process.env.X_CLIENT_ID, redirect_uri: redirectUri,
+    response_type: 'code', client_id: cfg('X_CLIENT_ID'), redirect_uri: redirectUri,
     scope: 'tweet.read tweet.write users.read offline.access', state,
     code_challenge: challenge, code_challenge_method: 'S256',
   });
@@ -28,7 +29,7 @@ const tokensFrom = (t) => ({ access_token: t.access_token, refresh_token: t.refr
 export async function connect({ code, redirectUri, verifier }) {
   const t = await api(`${BASE}/oauth2/token`, {
     method: 'POST', headers: basic(),
-    form: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier, client_id: process.env.X_CLIENT_ID },
+    form: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier, client_id: cfg('X_CLIENT_ID') },
   });
   const me = await api(`${BASE}/users/me`, { headers: { authorization: `Bearer ${t.access_token}` }, query: { 'user.fields': 'profile_image_url,username,name' } });
   return [{ externalId: me.data.id, name: me.data.name, handle: `@${me.data.username}`, avatar: me.data.profile_image_url, tokens: tokensFrom(t) }];
@@ -37,7 +38,7 @@ export async function connect({ code, redirectUri, verifier }) {
 export async function refresh(acct) {
   const t = await api(`${BASE}/oauth2/token`, {
     method: 'POST', headers: basic(),
-    form: { grant_type: 'refresh_token', refresh_token: acct.tokens.refresh_token, client_id: process.env.X_CLIENT_ID },
+    form: { grant_type: 'refresh_token', refresh_token: acct.tokens.refresh_token, client_id: cfg('X_CLIENT_ID') },
   });
   return tokensFrom(t);
 }

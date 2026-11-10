@@ -6,6 +6,7 @@ import { PORT, HOST, BASE_URL, BASE_PATH, PUBLIC_DIR, UPLOAD_DIR, PASSWORD } fro
 import { hmac, uid } from './store.js';
 import { providers } from './providers/index.js';
 import * as svc from './service.js';
+import * as settings from './settings.js';
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -76,6 +77,8 @@ route('POST', '/api/login', async (req, res) => {
 route('POST', '/api/logout', (req, res) => send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=${BASE_PATH || '/'}; Max-Age=0` }), { open: true });
 
 route('GET', '/api/platforms', (req, res) => send(res, 200, { platforms: svc.publicMeta(), baseUrl: BASE_URL, redirects: Object.fromEntries(Object.keys(providers).map((p) => [p, redirectUri(p)])) }));
+route('GET', '/api/settings', (req, res) => send(res, 200, { keys: settings.status() }));
+route('PUT', '/api/settings', async (req, res) => { settings.update((await readJson(req)).values || {}); send(res, 200, { keys: settings.status(), platforms: svc.publicMeta() }); });
 route('GET', '/api/accounts', (req, res) => send(res, 200, { accounts: svc.listAccounts() }));
 route('POST', '/api/accounts/demo/:platform', (req, res, { platform }) => send(res, 201, svc.addDemoAccount(platform)));
 route('DELETE', '/api/accounts/:id', (req, res, { id }) => { svc.removeAccount(id); send(res, 200, { ok: true }); });
@@ -116,7 +119,7 @@ route('POST', '/api/upload', async (req, res) => {
 route('GET', '/auth/:platform/start', (req, res, { platform }) => {
   const p = providers[platform];
   if (!p) return send(res, 404, 'Unknown platform');
-  if (!p.configured()) return send(res, 400, `${p.meta.name} is not configured. Set ${p.meta.env.join(' and ')} in .env.`);
+  if (!p.configured()) return send(res, 400, `${p.meta.name} is not configured. Add its API credentials under Accounts first.`);
   for (const [k, v] of oauth) if (Date.now() - v.t > 600_000) oauth.delete(k);
   const state = uid(16);
   const verifier = b64url(crypto.randomBytes(32));
@@ -203,6 +206,8 @@ const server = http.createServer(async (req, res) => {
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   server.listen(PORT, HOST, () => {
     console.log(`KMS Social Manager running at ${BASE_URL}${PASSWORD ? '' : '  (no DASHBOARD_PASSWORD set: open access)'}`);
+    const moved = settings.importEnv();
+    if (moved.length) console.log(`Imported ${moved.length} API credential(s) from the environment into the encrypted database. You can now remove them from .env.`);
     svc.startScheduler();
   });
 }

@@ -1,6 +1,6 @@
 # KMS Social Manager
 
-A self-hosted social media command center for Kingdom Management Solutions, in the spirit of Meta Business Suite but across **Facebook Pages, Instagram, X, TikTok and LinkedIn**. Zero runtime dependencies: Node 20.6+ and a browser.
+A self-hosted social media command center for Kingdom Management Solutions, in the spirit of Meta Business Suite but across **Facebook Pages, Instagram, X, TikTok and LinkedIn**. Zero runtime dependencies: Node 22.13+ (uses the built-in SQLite) and a browser.
 
 ## Features
 
@@ -14,7 +14,7 @@ A self-hosted social media command center for Kingdom Management Solutions, in t
 | **Analytics** | 7/30/90-day engagement and follower trends, per-account table, platform comparison, top posts |
 | **Accounts** | OAuth connect/disconnect per platform, with setup help for anything not yet configured |
 
-A built-in scheduler publishes due posts every 20 seconds. Tokens are encrypted at rest (AES-256-GCM) and refreshed automatically (X, TikTok).
+A built-in scheduler publishes due posts every 20 seconds. Tokens are encrypted at rest (AES-256-GCM, key in `data/.secret` or `APP_SECRET`; data lives in `data/kms.db`) and refreshed automatically (X, TikTok).
 
 ## Run it
 
@@ -31,9 +31,9 @@ npm test                 # unit tests (node:test)
 
 ## Connecting real accounts
 
-For each platform, create a developer app, register the redirect URI `BASE_URL/auth/<platform>/callback` (shown on the Accounts page), put the keys in `.env`, restart, and click **Connect**.
+For each platform, create a developer app, register the redirect URI `BASE_URL/auth/<platform>/callback` (shown on the Accounts page), paste its credentials into that platform's **API credentials** panel on the Accounts page, and click **Connect**. Credentials are stored encrypted in SQLite and are never sent back to the browser. (Credentials in `.env` still work and are imported into the database on first start.)
 
-| Platform | Env vars | Capabilities | Caveats |
+| Platform | Credentials | Capabilities | Caveats |
 |---|---|---|---|
 | Facebook Pages | `META_APP_ID`, `META_APP_SECRET` | publish, post stats, comments + replies, followers | Meta app review is needed for Pages permissions beyond your own admin/tester accounts |
 | Instagram | same Meta app | publish (image/Reels), post stats, comments + replies, followers | Business/Creator account linked to a Page; media must be a public URL |
@@ -47,7 +47,7 @@ Platform APIs change often; each integration is one small file in `server/provid
 
 - Set `BASE_URL` to your public HTTPS address (OAuth redirects and uploaded media URLs depend on it; Instagram and TikTok fetch media from it).
 - Set `DASHBOARD_PASSWORD`. Without it, anyone who can reach the server can post to your accounts.
-- Keep `data/` (database, uploads, encryption key) on persistent storage and out of git. Set `APP_SECRET` if you want to manage the encryption key yourself.
+- Keep `data/` (SQLite database, uploads, encryption key) and back up `kms.db` and `.secret` together: the database is unreadable without the key. Keep `data/` on persistent storage and out of git. Set `APP_SECRET` if you want to manage the encryption key yourself.
 - The scheduler runs inside the server process, so keep it running (systemd, Docker, a PaaS) for scheduled posts to go out.
 
 ## Layout

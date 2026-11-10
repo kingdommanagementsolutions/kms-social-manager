@@ -4,7 +4,7 @@
   "description": "Unified social media dashboard for Kingdom Management Solutions: compose, schedule, inbox and analytics across Facebook, Instagram, X, TikTok and LinkedIn.",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=20.6" },
+  "engines": { "node": ">=22.13" },
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
