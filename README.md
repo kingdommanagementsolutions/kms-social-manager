@@ -62,9 +62,9 @@ tests/             node:test suite
 
 ## Deploying to a VPS (systemd, no Docker)
 
-1. On the server (Ubuntu 24.04): `sudo deploy/setup-ubuntu.sh` installs Node 22, git and nginx, and configures nginx to proxy port 80 to the app. No domain needed: browse to `http://<server-ip>`.
+1. On the server (Ubuntu 24.04): `sudo deploy/setup-ubuntu.sh` installs Node 22, git and nginx, and configures nginx to proxy port 80 to the app. No domain needed: browse to `http://<server-ip>/kms-social-dashboard/`.
 2. `deploy/deploy.sh local <branch>` on the server itself, or `deploy/deploy.sh user@your-server <branch>` from another machine (clones to `/opt/kms-social-manager`, installs the `kms-social` systemd service, restarts it).
-3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL=http://<server-ip>`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
+3. The first run creates `/opt/kms-social-manager/.env` from the template. Edit it (`BASE_URL=http://<server-ip>/kms-social-dashboard`, `DASHBOARD_PASSWORD`, API keys), then run the script again.
 4. Logs: `journalctl -u kms-social -f`. Back up `/opt/kms-social-manager/data`.
 
-**IP-only caveats.** Without a domain there is no trusted HTTPS certificate, so traffic (including the dashboard password) is unencrypted, and most platforms won't work against it: Meta, TikTok, X and LinkedIn require HTTPS redirect URIs, and Instagram/TikTok fetch uploaded media over a valid HTTPS URL. Demo mode and the UI work fine. For real connections, point a domain at the server and run `sudo deploy/enable-https.sh your.domain you@example.com`, which gets a Let's Encrypt certificate via certbot, redirects HTTP to HTTPS and updates `BASE_URL`. Until then, restrict access with a firewall or a VPN.
+**IP-only caveats.** Without a domain there is no trusted HTTPS certificate, so traffic (including the dashboard password) is unencrypted, and most platforms won't work against it: Meta, TikTok, X and LinkedIn require HTTPS redirect URIs, and Instagram/TikTok fetch uploaded media over a valid HTTPS URL. Demo mode and the UI work fine. For real connections, point a domain at the server and run `sudo deploy/enable-https.sh your.domain you@example.com`, which gets a Let's Encrypt certificate via certbot, redirects HTTP to HTTPS and updates `BASE_URL` (keeping the `/kms-social-dashboard` path). Until then, restrict access with a firewall or a VPN.

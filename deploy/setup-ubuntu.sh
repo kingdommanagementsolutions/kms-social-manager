@@ -32,4 +32,4 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw 
 echo; echo "node $(node -v) | npm $(npm -v) | $(git --version) | nginx $(nginx -v 2>&1 | cut -d/ -f2)"
 
 IP="$(hostname -I | awk '{print $1}')"
-echo "Next: deploy/deploy.sh local <branch>, then set BASE_URL=http://$IP in /opt/kms-social-manager/.env"
+echo "Next: deploy/deploy.sh local <branch>, then set BASE_URL=http://$IP/kms-social-dashboard in /opt/kms-social-manager/.env"

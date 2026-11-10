@@ -26,8 +26,8 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw 
 certbot --nginx -d "$DOMAIN" -m "$EMAIL" --agree-tos --no-eff-email --redirect --non-interactive
 
 # App must know its public HTTPS address (OAuth redirects, media URLs, Secure cookie)
-if grep -q '^BASE_URL=' "$ENVF"; then sed -i "s#^BASE_URL=.*#BASE_URL=https://$DOMAIN#" "$ENVF"; else echo "BASE_URL=https://$DOMAIN" >> "$ENVF"; fi
+if grep -q '^BASE_URL=' "$ENVF"; then sed -i "s#^BASE_URL=.*#BASE_URL=https://$DOMAIN/kms-social-dashboard#" "$ENVF"; else echo "BASE_URL=https://$DOMAIN/kms-social-dashboard" >> "$ENVF"; fi
 systemctl restart kms-social
 
-echo; echo "Done: https://$DOMAIN  (certbot renews automatically; test with: sudo certbot renew --dry-run)"
-echo "OAuth redirect URIs to register: https://$DOMAIN/auth/<platform>/callback"
+echo; echo "Done: https://$DOMAIN/kms-social-dashboard/  (certbot renews automatically; test with: sudo certbot renew --dry-run)"
+echo "OAuth redirect URIs to register: https://$DOMAIN/kms-social-dashboard/auth/<platform>/callback"

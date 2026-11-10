@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { PORT, HOST, BASE_URL, PUBLIC_DIR, UPLOAD_DIR, PASSWORD } from './config.js';
+import { PORT, HOST, BASE_URL, BASE_PATH, PUBLIC_DIR, UPLOAD_DIR, PASSWORD } from './config.js';
 import { hmac, uid } from './store.js';
 import { providers } from './providers/index.js';
 import * as svc from './service.js';
@@ -71,9 +71,9 @@ route('POST', '/api/login', async (req, res) => {
     return send(res, 401, { error: 'Incorrect password' });
   }
   const exp = Date.now() + 7 * 86_400_000;
-  send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sign(exp))}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 86400}${BASE_URL.startsWith('https') ? '; Secure' : ''}` });
+  send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sign(exp))}; HttpOnly; SameSite=Lax; Path=${BASE_PATH || '/'}; Max-Age=${7 * 86400}${BASE_URL.startsWith('https') ? '; Secure' : ''}` });
 }, { open: true });
-route('POST', '/api/logout', (req, res) => send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }), { open: true });
+route('POST', '/api/logout', (req, res) => send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=${BASE_PATH || '/'}; Max-Age=0` }), { open: true });
 
 route('GET', '/api/platforms', (req, res) => send(res, 200, { platforms: svc.publicMeta(), baseUrl: BASE_URL, redirects: Object.fromEntries(Object.keys(providers).map((p) => [p, redirectUri(p)])) }));
 route('GET', '/api/accounts', (req, res) => send(res, 200, { accounts: svc.listAccounts() }));
@@ -126,7 +126,7 @@ route('GET', '/auth/:platform/start', (req, res, { platform }) => {
   res.end();
 });
 route('GET', '/auth/:platform/callback', async (req, res, { platform }, url) => {
-  const back = (q) => { res.writeHead(302, { location: `/#/accounts?${q}` }); res.end(); };
+  const back = (q) => { res.writeHead(302, { location: `${BASE_PATH}/#/accounts?${q}` }); res.end(); };
   const st = oauth.get(url.searchParams.get('state'));
   oauth.delete(url.searchParams.get('state'));
   if (!st || st.platform !== platform) return back('error=' + encodeURIComponent('Login session expired. Please try again.'));
@@ -176,7 +176,7 @@ const server = http.createServer(async (req, res) => {
       const r = routes.find((x) => x.method === req.method && x.re.test(pathname));
       if (!r) return send(res, 404, { error: 'Not found' });
       if (!r.open && !isAuthed(req)) {
-        if (pathname.startsWith('/auth/')) { res.writeHead(302, { location: '/' }); return res.end(); }
+        if (pathname.startsWith('/auth/')) { res.writeHead(302, { location: `${BASE_PATH}/` }); return res.end(); }
         return send(res, 401, { error: 'Not signed in' });
       }
       if (['POST', 'PUT'].includes(req.method) && pathname !== '/api/upload' && req.headers['content-length'] !== '0' && !/application\/json/.test(req.headers['content-type'] || '')) {

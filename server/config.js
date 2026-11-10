@@ -12,3 +12,5 @@ export const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 export const PUBLIC_DIR = path.join(ROOT, 'public');
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 export const PASSWORD = process.env.DASHBOARD_PASSWORD || '';
+// URL path the app is mounted under (nginx strips it), e.g. /kms-social-dashboard. Empty when served from the root.
+export const BASE_PATH = new URL(BASE_URL).pathname.replace(/\/$/, '');

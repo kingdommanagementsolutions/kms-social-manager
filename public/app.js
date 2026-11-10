@@ -31,7 +31,7 @@ const acct = (id) => S.accounts.find((a) => a.id === id);
 async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && path !== '/api/login') { renderLogin(); throw new Error('Not signed in'); }
+  if (res.status === 401 && path !== 'api/login') { renderLogin(); throw new Error('Not signed in'); }
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }
@@ -163,13 +163,13 @@ document.addEventListener('keydown', (e) => {
 });
 const globalActs = {
   theme() { const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); const n = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = n; try { localStorage.setItem('theme', n); } catch { /* ignore */ } },
-  async logout() { await api('/api/logout', { method: 'POST' }); renderLogin(); },
+  async logout() { await api('api/logout', { method: 'POST' }); renderLogin(); },
 };
 
 /* ---------- Dashboard ---------- */
 views.dashboard = async (el, _a, _q, tok) => {
   if (!S.accounts.length) { el.innerHTML = head('Dashboard', 'Everything across your social pages at a glance') + `<div class="card">${empty('No accounts connected yet', 'Connect Facebook, Instagram, X, TikTok or LinkedIn — or add demo accounts to explore the dashboard.', connectCta)}</div>`; return; }
-  const [an, posts, inb] = await Promise.all([api('/api/analytics?days=30'), api('/api/posts'), api('/api/inbox').catch(() => ({ items: [] }))]);
+  const [an, posts, inb] = await Promise.all([api('api/analytics?days=30'), api('api/posts'), api('api/inbox').catch(() => ({ items: [] }))]);
   if (stale(tok)) return;
   setUnread(inb.items.filter((i) => !i.read).length);
   const queue = posts.posts.filter((p) => p.status === 'scheduled').sort((a, b) => (a.scheduledAt > b.scheduledAt ? 1 : -1));
@@ -206,7 +206,7 @@ views.compose = async (el, id, q, tok) => {
   if (!S.accounts.length) { el.innerHTML = head('Create post') + `<div class="card">${empty('Connect an account first', 'You need at least one connected account to publish.', connectCta)}</div>`; return; }
   const c = { id: null, text: '', mediaUrl: '', ids: new Set(), at: '' };
   if (id) {
-    const { posts } = await api('/api/posts');
+    const { posts } = await api('api/posts');
     const p = posts.find((x) => x.id === id);
     if (stale(tok)) return;
     if (!p) { el.innerHTML = `<div class="alert bad">Post not found.</div>`; return; }
@@ -258,13 +258,13 @@ views.compose = async (el, id, q, tok) => {
   $('#file').addEventListener('change', (e) => run(async () => {
     const f = e.target.files[0]; if (!f) return;
     $('#mediaHint').textContent = `Uploading ${f.name}…`;
-    const r = await fetch('/api/upload', { method: 'POST', headers: { 'x-filename': encodeURIComponent(f.name) }, body: f });
+    const r = await fetch('api/upload', { method: 'POST', headers: { 'x-filename': encodeURIComponent(f.name) }, body: f });
     const d = await r.json(); if (!r.ok) { draw(); throw new Error(d.error); }
     media.value = d.url; draw();
     if (/localhost|127\.0\.0\.1/.test(d.url)) toast('Uploaded. Note: platforms cannot reach localhost — set BASE_URL to a public address before publishing.', true);
   }));
   acts.pick = (t) => { const k = t.dataset.id; c.ids.has(k) ? c.ids.delete(k) : c.ids.add(k); draw(); };
-  acts.del = async () => { if (!confirm('Delete this post?')) return; await api(`/api/posts/${c.id}`, { method: 'DELETE' }); toast('Post deleted'); location.hash = '#/posts'; };
+  acts.del = async () => { if (!confirm('Delete this post?')) return; await api(`api/posts/${c.id}`, { method: 'DELETE' }); toast('Post deleted'); location.hash = '#/posts'; };
   acts.save = async (btn) => {
     draw();
     const mode = btn.dataset.mode;
@@ -273,8 +273,8 @@ views.compose = async (el, id, q, tok) => {
     btn.disabled = true;
     try {
       let post;
-      if (c.id) { post = await api(`/api/posts/${c.id}`, { method: 'PUT', body }); if (mode === 'now') post = await api(`/api/posts/${c.id}/publish`, { method: 'POST', body: {} }); }
-      else post = await api('/api/posts', { method: 'POST', body });
+      if (c.id) { post = await api(`api/posts/${c.id}`, { method: 'PUT', body }); if (mode === 'now') post = await api(`api/posts/${c.id}/publish`, { method: 'POST', body: {} }); }
+      else post = await api('api/posts', { method: 'POST', body });
       if (mode === 'now') {
         const bad = post.targets.filter((t) => t.status === 'failed');
         if (bad.length) toast(bad.map((t) => `${acct(t.accountId)?.name || 'Account'}: ${t.error}`).join('\n'), true);
@@ -289,7 +289,7 @@ views.compose = async (el, id, q, tok) => {
 /* ---------- Calendar ---------- */
 let calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 views.calendar = async (el, _a, _q, tok) => {
-  const { posts } = await api('/api/posts');
+  const { posts } = await api('api/posts');
   if (stale(tok)) return;
   const first = new Date(calMonth), start = new Date(first); start.setDate(1 - first.getDay());
   const byDay = {};
@@ -316,7 +316,7 @@ views.calendar = async (el, _a, _q, tok) => {
 /* ---------- Posts ---------- */
 let postsTab = 'queue';
 views.posts = async (el, _a, _q, tok) => {
-  const [{ posts }, fd] = await Promise.all([api('/api/posts'), postsTab === 'live' ? api('/api/feed') : Promise.resolve(null)]);
+  const [{ posts }, fd] = await Promise.all([api('api/posts'), postsTab === 'live' ? api('api/feed') : Promise.resolve(null)]);
   if (stale(tok)) return;
   const list = postsTab === 'queue' ? posts : [];
   el.innerHTML = head('Posts', 'Your queue and what is live on each platform', `<div class="seg"><button data-act="tab" data-t="queue" class="${postsTab === 'queue' ? 'on' : ''}">Queue & history</button><button data-act="tab" data-t="live" class="${postsTab === 'live' ? 'on' : ''}">Live on platforms</button></div><a class="btn primary" href="#/compose">${icon('pen')} Create post</a>`) +
@@ -328,14 +328,14 @@ views.posts = async (el, _a, _q, tok) => {
       : empty('No posts yet', 'Create your first post to see it here.', '<a class="btn primary" href="#/compose">Create post</a>')}</div>`
     : `${errorsBox(fd.errors)}<div class="card">${fd.items.length ? `<div class="tablewrap"><table><thead><tr><th>Post</th><th>Published</th><th class="r">Likes</th><th class="r">Comments</th><th class="r">Shares</th><th class="r">Views</th></tr></thead><tbody>${fd.items.map((p) => `<tr><td><div style="display:flex;gap:10px;align-items:center">${pf(p.platform)}<div style="min-width:0"><div class="clip" style="max-width:420px">${safeUrl(p.url) ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.text || '(media)')}</a>` : esc(p.text || '(media)')}</div><div class="muted small">${esc(p.accountName)}</div></div></div></td><td class="muted small">${esc(fmtDate(p.publishedAt))}</td><td class="r num">${fmt(p.metrics.likes)}</td><td class="r num">${fmt(p.metrics.comments)}</td><td class="r num">${fmt(p.metrics.shares)}</td><td class="r num">${fmt(p.metrics.views)}</td></tr>`).join('')}</tbody></table></div>` : empty('Nothing published yet', S.accounts.length ? 'Posts from your connected accounts appear here.' : 'Connect an account to see its posts.', S.accounts.length ? '' : connectCta)}</div>`);
   acts.tab = (t) => { postsTab = t.dataset.t; render(); };
-  acts.publish = async (t) => { t.disabled = true; const p = await api(`/api/posts/${t.dataset.id}/publish`, { method: 'POST', body: {} }); const bad = p.targets.filter((x) => x.status === 'failed'); bad.length ? toast(bad.map((x) => x.error).join('\n'), true) : toast('Published'); render(); };
-  acts.remove = async (t) => { if (!confirm('Delete this post?')) return; await api(`/api/posts/${t.dataset.id}`, { method: 'DELETE' }); render(); };
+  acts.publish = async (t) => { t.disabled = true; const p = await api(`api/posts/${t.dataset.id}/publish`, { method: 'POST', body: {} }); const bad = p.targets.filter((x) => x.status === 'failed'); bad.length ? toast(bad.map((x) => x.error).join('\n'), true) : toast('Published'); render(); };
+  acts.remove = async (t) => { if (!confirm('Delete this post?')) return; await api(`api/posts/${t.dataset.id}`, { method: 'DELETE' }); render(); };
 };
 
 /* ---------- Inbox ---------- */
 let inboxFilter = 'all';
 views.inbox = async (el, arg, _q, tok) => {
-  const { items, errors } = await api('/api/inbox');
+  const { items, errors } = await api('api/inbox');
   if (stale(tok)) return;
   setUnread(items.filter((i) => !i.read).length);
   let sel = arg ? decodeURIComponent(arg) : null;
@@ -352,11 +352,11 @@ views.inbox = async (el, arg, _q, tok) => {
       ${m.reply ? `<div class="alert good" style="margin-top:14px"><b>You replied</b> · ${esc(fmtDate(m.reply.at))}<div style="white-space:pre-wrap">${esc(m.reply.text)}</div></div>` : ''}
       ${P(m.platform).features?.comments || acct(m.accountId)?.demo ? `<label class="field" for="reply">${m.reply ? 'Send another reply' : 'Reply'}</label><textarea id="reply" style="min-height:90px" placeholder="Write a reply…"></textarea><div class="actions"><button class="btn primary" data-act="reply">Send reply</button></div>` : ''}` : empty('Select a comment', 'Pick a conversation on the left to read and reply.');
   };
-  const setRead = async (m, read) => { m.read = read; await api('/api/inbox/read', { method: 'POST', body: { id: m.id, read } }); setUnread(items.filter((i) => !i.read).length); };
+  const setRead = async (m, read) => { m.read = read; await api('api/inbox/read', { method: 'POST', body: { id: m.id, read } }); setUnread(items.filter((i) => !i.read).length); };
   acts.open = async (t) => { sel = t.dataset.id; const m = items.find((i) => i.id === sel); draw(); if (m && !m.read) { await setRead(m, true); draw(); } };
   acts.filter = (t) => { inboxFilter = t.dataset.f; render(); };
   acts.toggle = async () => { const m = items.find((i) => i.id === sel); await setRead(m, !m.read); draw(); };
-  acts.reply = async (t) => { const m = items.find((i) => i.id === sel); const text = $('#reply').value; t.disabled = true; try { await api('/api/inbox/reply', { method: 'POST', body: { id: m.id, text } }); m.read = true; m.reply = { text: text.trim(), at: new Date().toISOString() }; toast('Reply sent'); draw(); setUnread(items.filter((i) => !i.read).length); } finally { t.disabled = false; } };
+  acts.reply = async (t) => { const m = items.find((i) => i.id === sel); const text = $('#reply').value; t.disabled = true; try { await api('api/inbox/reply', { method: 'POST', body: { id: m.id, text } }); m.read = true; m.reply = { text: text.trim(), at: new Date().toISOString() }; toast('Reply sent'); draw(); setUnread(items.filter((i) => !i.read).length); } finally { t.disabled = false; } };
   document.querySelector('#list').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('.msg')) e.target.click(); });
   draw();
   if (sel && items.find((i) => i.id === sel && !i.read)) acts.open({ dataset: { id: sel } });
@@ -366,7 +366,7 @@ views.inbox = async (el, arg, _q, tok) => {
 let range = 30;
 views.analytics = async (el, _a, _q, tok) => {
   if (!S.accounts.length) { el.innerHTML = head('Analytics') + `<div class="card">${empty('No data yet', 'Connect an account to start tracking performance.', connectCta)}</div>`; return; }
-  const an = await api(`/api/analytics?days=${range}`);
+  const an = await api(`api/analytics?days=${range}`);
   if (stale(tok)) return;
   const t = an.totals, ps = platSeries(an.series.engagement.byPlatform), fs = platSeries(an.series.followers.byPlatform);
   const byP = {}; for (const a of an.accounts) byP[a.platform] = (byP[a.platform] || 0) + a.engagement;
@@ -393,7 +393,7 @@ views.analytics = async (el, _a, _q, tok) => {
 
 /* ---------- Accounts ---------- */
 views.accounts = async (el, _a, q) => {
-  const [{ platforms, redirects }, { accounts }] = await Promise.all([api('/api/platforms'), api('/api/accounts')]);
+  const [{ platforms, redirects }, { accounts }] = await Promise.all([api('api/platforms'), api('api/accounts')]);
   S.platforms = platforms; S.redirects = redirects; S.accounts = accounts;
   const feat = (f) => [['publish', 'Publish'], ['posts', 'Post stats'], ['comments', 'Comments'], ['followers', 'Followers']].map(([k, l]) => `<span class="pill ${f[k] ? 'good' : ''}" ${f[k] ? '' : 'style="text-decoration:line-through;opacity:.6"'}>${l}</span>`).join('');
   el.innerHTML = head('Accounts', 'Connect the pages and profiles you manage') +
@@ -404,27 +404,27 @@ views.accounts = async (el, _a, q) => {
       return `<div class="card"><div style="display:flex;gap:10px;align-items:center">${pf(p.id, true)}<div><h2>${esc(p.name)}</h2><span class="pill ${p.configured ? 'good' : ''}">${p.configured ? 'API configured' : 'Not configured'}</span></div></div>
         <div class="feat">${feat(p.features)}</div><div class="muted small">${esc(p.note)}</div>
         ${mine.map((a) => `<div class="row">${a.avatar && safeUrl(a.avatar) ? `<img class="avatar" src="${esc(a.avatar)}" alt="" referrerpolicy="no-referrer">` : pf(p.id, true)}<div class="grow"><div class="clip"><b>${esc(a.name)}</b>${demoPill(a)}</div><div class="muted small clip">${esc(a.handle)}</div></div><button class="btn sm danger" data-act="disconnect" data-id="${esc(a.id)}">Remove</button></div>`).join('')}
-        <div class="actions">${p.configured ? `<a class="btn primary" href="/auth/${esc(p.id)}/start">${mine.some((a) => !a.demo) ? 'Connect another' : 'Connect'}</a>` : ''}${mine.some((a) => a.demo) ? '' : `<button class="btn" data-act="demo" data-p="${esc(p.id)}">Add demo account</button>`}</div>
+        <div class="actions">${p.configured ? `<a class="btn primary" href="auth/${esc(p.id)}/start">${mine.some((a) => !a.demo) ? 'Connect another' : 'Connect'}</a>` : ''}${mine.some((a) => a.demo) ? '' : `<button class="btn" data-act="demo" data-p="${esc(p.id)}">Add demo account</button>`}</div>
         ${p.configured ? '' : `<details style="margin-top:12px"><summary class="small" style="cursor:pointer">How to set this up</summary><div class="small" style="margin-top:8px">Create an app in the <a href="${esc(p.docs)}" target="_blank" rel="noopener">${esc(p.name)} developer portal</a>, add this redirect URI, then put the credentials in <code>.env</code> and restart:<div style="margin:6px 0"><code>${esc(redirects[p.id])}</code></div>${p.env.map((e) => `<div><code>${esc(e)}</code></div>`).join('')}</div></details>`}</div>`;
     }).join('')}</div>`;
-  acts.demo = async (t) => { await api(`/api/accounts/demo/${t.dataset.p}`, { method: 'POST', body: {} }); toast('Demo account added'); await refreshAccounts(); render(); };
-  acts.disconnect = async (t) => { if (!confirm('Remove this account from the dashboard? Scheduled posts for it will fail.')) return; await api(`/api/accounts/${t.dataset.id}`, { method: 'DELETE' }); await refreshAccounts(); render(); };
+  acts.demo = async (t) => { await api(`api/accounts/demo/${t.dataset.p}`, { method: 'POST', body: {} }); toast('Demo account added'); await refreshAccounts(); render(); };
+  acts.disconnect = async (t) => { if (!confirm('Remove this account from the dashboard? Scheduled posts for it will fail.')) return; await api(`api/accounts/${t.dataset.id}`, { method: 'DELETE' }); await refreshAccounts(); render(); };
 };
-const refreshAccounts = async () => { S.accounts = (await api('/api/accounts')).accounts; };
+const refreshAccounts = async () => { S.accounts = (await api('api/accounts')).accounts; };
 
 /* ---------- login & boot ---------- */
 function renderLogin() {
   $('#app').innerHTML = `<div class="login"><form class="card" id="lf"><div class="brand" style="padding-left:0"><span class="logo"><svg viewBox="0 0 32 32" fill="none" stroke-width="3" stroke-linecap="round"><path d="M9 8v16M9 16l9-8M11.5 14l8.5 10"/></svg></span><span>KMS Social Manager</span></div>
     <label class="field" for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" autofocus><div class="actions"><button class="btn primary" type="submit">Sign in</button></div></form></div>`;
-  $('#lf').addEventListener('submit', (e) => { e.preventDefault(); run(async () => { await api('/api/login', { method: 'POST', body: { password: $('#pw').value } }); await boot(); }); });
+  $('#lf').addEventListener('submit', (e) => { e.preventDefault(); run(async () => { await api('api/login', { method: 'POST', body: { password: $('#pw').value } }); await boot(); }); });
 }
 
 async function boot() {
   try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch { /* ignore */ }
-  const ses = await api('/api/session');
+  const ses = await api('api/session');
   S.authRequired = ses.authRequired;
   if (ses.authRequired && !ses.authed) return renderLogin();
-  const [{ platforms, redirects }, { accounts }] = await Promise.all([api('/api/platforms'), api('/api/accounts')]);
+  const [{ platforms, redirects }, { accounts }] = await Promise.all([api('api/platforms'), api('api/accounts')]);
   Object.assign(S, { platforms, redirects, accounts });
   renderShell();
   await render();
